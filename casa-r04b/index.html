@@ -12,13 +12,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: el modelo ocupa toda la pantalla; ficha técnica arriba a la izquierda, vistas abajo, como una lámina de presentación */
+/* Layout: el modelo ocupa toda la pantalla; ficha arriba a la izquierda; abajo, el recorrido ordenado por grupos (Exterior, Planta baja, Planta alta) con anterior/siguiente */
 :root {
   --bg: #eef1f2;
   --sky-top: #cfdfe6;
   --ink: #18303d;
   --muted: #5b6d77;
-  --panel: rgba(255, 255, 255, 0.86);
+  --panel: rgba(255, 255, 255, 0.88);
   --line: #c9d3d8;
   --accent: #b5652e;
   --ground: #dfe3dc;
@@ -28,27 +28,26 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #11181d; --sky-top: #1f2d36; --ink: #e5edf1; --muted: #93a6b1;
-    --panel: rgba(17, 24, 29, 0.84); --line: #2c3b44; --accent: #e08a4e; --ground: #2a3133;
+    --panel: rgba(17, 24, 29, 0.86); --line: #2c3b44; --accent: #e08a4e; --ground: #2a3133;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #11181d; --sky-top: #1f2d36; --ink: #e5edf1; --muted: #93a6b1;
-  --panel: rgba(17, 24, 29, 0.84); --line: #2c3b44; --accent: #e08a4e; --ground: #2a3133;
+  --panel: rgba(17, 24, 29, 0.86); --line: #2c3b44; --accent: #e08a4e; --ground: #2a3133;
   color-scheme: dark;
 }
 html, body { height: 100%; }
 body { background: var(--bg); color: var(--ink); font-family: var(--font-display); overflow: hidden; }
 #stage { position: fixed; inset: 0; background: linear-gradient(var(--sky-top), var(--bg) 70%); }
 #stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; backdrop-filter: blur(6px); }
 .sheet {
   position: fixed;
   top: calc(env(safe-area-inset-top, 0px) + 16px);
   left: max(16px, env(safe-area-inset-left, 0px));
   max-width: min(340px, calc(100vw - 32px));
-  background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
-  padding: 14px 16px; backdrop-filter: blur(6px);
-  display: grid; gap: 8px;
+  padding: 14px 16px; display: grid; gap: 8px;
 }
 .sheet .tag { font-family: var(--font-data); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
 .sheet h1 { margin: 0; font-size: 22px; font-weight: 700; line-height: 1.1; text-wrap: balance; }
@@ -56,42 +55,48 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-display
 .sheet dt { color: var(--muted); }
 .sheet dd { margin: 0; }
 .sheet .note { font-size: 11px; color: var(--muted); font-family: var(--font-data); }
-.views {
+
+.tour {
   position: fixed;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
   left: 50%; transform: translateX(-50%);
-  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
-  max-width: calc(100vw - 32px);
-  background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px;
-  backdrop-filter: blur(6px);
+  width: min(760px, calc(100vw - 32px));
+  padding: 8px; display: grid; gap: 8px;
 }
-.views button {
-  font: 500 13px var(--font-display); color: var(--ink); background: transparent;
-  border: 1px solid transparent; border-radius: 4px; padding: 8px 12px; cursor: pointer;
+.now { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; }
+.now .label { min-width: 0; text-align: center; }
+.now .label b { display: block; font-size: 15px; font-weight: 700; }
+.now .label span { display: block; font-family: var(--font-data); font-size: 11px; color: var(--muted); }
+.step {
+  font: 700 18px var(--font-display); color: var(--ink); background: transparent;
+  border: 1px solid var(--line); border-radius: 4px; width: 40px; height: 36px; cursor: pointer;
 }
-.views button:hover { border-color: var(--line); }
-.views button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
-.views button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.hint {
-  position: fixed;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
-  left: 50%; transform: translateX(-50%);
-  font-family: var(--font-data); font-size: 11px; color: var(--muted); white-space: nowrap;
+.groups { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.groups::-webkit-scrollbar { display: none; }
+.group { display: flex; align-items: center; gap: 4px; flex: none; padding-right: 6px; border-right: 1px solid var(--line); }
+.group:last-child { border-right: 0; }
+.group .gname { font-family: var(--font-data); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); padding: 0 4px; white-space: nowrap; }
+.chip {
+  font: 500 13px var(--font-display); color: var(--ink); background: transparent; white-space: nowrap;
+  border: 1px solid transparent; border-radius: 4px; padding: 7px 10px; cursor: pointer;
 }
+.chip:hover, .step:hover { border-color: var(--muted); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.chip:focus-visible, .step:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #status {
   position: fixed; inset: 0; display: grid; place-items: center;
   font-family: var(--font-data); font-size: 13px; color: var(--muted); pointer-events: none;
 }
-#status[hidden] { display: none; }
-@media (max-width: 520px) {
+#status[hidden], .sheet[hidden] { display: none; }
+@media (max-width: 560px) {
   .sheet dl, .sheet .note { display: none; }
-  .hint { display: none; }
+  .sheet h1 { font-size: 18px; }
 }
 </style>
 
 <div id="stage" aria-label="Modelo 3D de la casa"></div>
 
-<section class="sheet">
+<section class="sheet panel">
   <span class="tag">Anteproyecto R04B · corregido</span>
   <h1>Casa de dos plantas</h1>
   <dl>
@@ -105,12 +110,13 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-display
 
 <div id="status">Cargando modelo…</div>
 
-<span class="hint">Arrastra para girar · rueda o pellizco para acercar</span>
-<nav class="views" aria-label="Vistas">
-  <button type="button" id="v-fachada" data-view="fachada" aria-pressed="true">Fachada</button>
-  <button type="button" id="v-balcon" data-view="balcon" aria-pressed="false">Balcón</button>
-  <button type="button" id="v-aerea" data-view="aerea" aria-pressed="false">Aérea</button>
-  <button type="button" id="v-trasera" data-view="trasera" aria-pressed="false">Trasera</button>
+<nav class="tour panel" aria-label="Recorrido">
+  <div class="now">
+    <button type="button" class="step" id="prev" aria-label="Vista anterior">‹</button>
+    <div class="label" aria-live="polite"><b id="now-title">Fachada</b><span id="now-hint">Arrastra para girar · rueda o pellizco para acercar</span></div>
+    <button type="button" class="step" id="next" aria-label="Vista siguiente">›</button>
+  </div>
+  <div class="groups" id="groups"></div>
 </nav>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
@@ -119,6 +125,27 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-display
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/OBJLoader.js"></script>
 <script>
 (function () {
+  // Modelo en cm: X ancho (0–900), Y altura (planta baja 0–280, planta alta 280–560, azotea 560+), Z fondo→frente (0–1100)
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  // mode: 'todo' casa completa · 'pa' sin azotea ni techos de arriba · 'pb' solo planta baja, sin techos
+  const VIEWS = [
+    { group: 'Exterior', id: 'fachada', name: 'Fachada', hint: 'Frente y acceso', mode: 'todo', pos: V(-650, 520, 2350), tgt: V(330, 260, 600) },
+    { group: 'Exterior', id: 'balcon', name: 'Balcón', hint: 'Balcón de 3 × 6 m sobre el estacionamiento', mode: 'todo', pos: V(-1500, 420, 1500), tgt: V(-50, 260, 760) },
+    { group: 'Exterior', id: 'trasera', name: 'Trasera', hint: 'Fachada posterior', mode: 'todo', pos: V(1500, 600, -1300), tgt: V(450, 260, 500) },
+    { group: 'Exterior', id: 'panoramica', name: 'Panorámica', hint: 'Giro automático · toca el modelo para detenerlo', mode: 'todo', pos: V(-1300, 900, 2000), tgt: V(330, 230, 560), spin: true },
+    { group: 'Planta baja', id: 'pb-arriba', name: 'Desde arriba', hint: 'Planta baja sin techo', mode: 'pb', pos: V(450, 1750, 1250), tgt: V(330, 0, 560) },
+    { group: 'Planta baja', id: 'sala', name: 'Sala', hint: 'Sala de 20 m² · vista desde la entrada', mode: 'pb', pos: V(520, 165, 1060), tgt: V(760, 80, 800), fov: 65 },
+    { group: 'Planta baja', id: 'comedor', name: 'Comedor', hint: 'Comedor abierto a la cocina', mode: 'pb', pos: V(430, 165, 360), tgt: V(190, 80, 170), fov: 65 },
+    { group: 'Planta baja', id: 'cocina', name: 'Cocina', hint: 'Cocina en L con isla', mode: 'pb', pos: V(300, 170, 340), tgt: V(740, 90, 170), fov: 65 },
+    { group: 'Planta baja', id: 'acceso', name: 'Acceso y escalera', hint: 'Acceso peatonal y escalera en U', mode: 'pb', pos: V(420, 165, 1060), tgt: V(180, 110, 540), fov: 65 },
+    { group: 'Planta alta', id: 'pa-arriba', name: 'Desde arriba', hint: 'Planta alta sin techo', mode: 'pa', pos: V(450, 2050, 1300), tgt: V(330, 280, 560) },
+    { group: 'Planta alta', id: 'principal', name: 'Recámara principal', hint: 'Con ventanal al balcón, vestidor y baño', mode: 'pa', pos: V(450, 445, 1070), tgt: V(170, 330, 880), fov: 65 },
+    { group: 'Planta alta', id: 'rec1', name: 'Recámara 1', hint: 'Libre 4.29 × 3.19 m', mode: 'pa', pos: V(870, 445, 320), tgt: V(660, 330, 140), fov: 65 },
+    { group: 'Planta alta', id: 'rec2', name: 'Recámara 2', hint: 'Libre 4.29 × 3.19 m', mode: 'pa', pos: V(30, 445, 320), tgt: V(220, 330, 140), fov: 65 },
+    { group: 'Planta alta', id: 'rec3', name: 'Recámara 3', hint: 'Con clóset de 1.40 m', mode: 'pa', pos: V(510, 445, 785), tgt: V(730, 330, 610), fov: 65 },
+    { group: 'Planta alta', id: 'circulacion', name: 'Circulación', hint: 'Pasillo junto al hueco de la escalera', mode: 'pa', pos: V(60, 445, 760), tgt: V(420, 330, 420), fov: 65 },
+  ];
+
   const stage = document.getElementById('stage');
   const status = document.getElementById('status');
   const css = () => getComputedStyle(document.documentElement);
@@ -126,28 +153,31 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-display
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputEncoding = THREE.sRGBEncoding;
+  // Curva de tono para que los muebles y muros blancos no se quemen con el sol
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.95;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   stage.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  // Modelo en cm: X ancho (0–900), Y altura, Z fondo→frente (0–1100); el frente mira a +Z
-  const center = new THREE.Vector3(300, 260, 560);
-  const camera = new THREE.PerspectiveCamera(40, 1, 10, 20000);
+  const camera = new THREE.PerspectiveCamera(40, 1, 5, 20000);
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.maxPolarAngle = Math.PI * 0.49;
-  controls.minDistance = 300;
+  controls.minDistance = 20;
   controls.maxDistance = 7000;
-  controls.target.copy(center);
+  controls.autoRotateSpeed = 0.8;
+  controls.addEventListener('start', () => { controls.autoRotate = false; anim = null; });
 
-  scene.add(new THREE.HemisphereLight(0xf2f6f8, 0x8a8f86, 0.75));
-  const sun = new THREE.DirectionalLight(0xfff4e6, 0.85);
+  scene.add(new THREE.HemisphereLight(0xf2f6f8, 0x8a8f86, 0.8));
+  const sun = new THREE.DirectionalLight(0xfff4e6, 0.8);
   sun.position.set(-900, 1600, 1800);
-  sun.target.position.copy(center);
+  sun.target.position.set(300, 200, 560);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.bias = -0.0005;
   Object.assign(sun.shadow.camera, { left: -1200, right: 1200, top: 1200, bottom: -1200, near: 100, far: 5000 });
   scene.add(sun, sun.target);
 
@@ -157,42 +187,85 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-display
   ground.position.set(300, -1, 550);
   ground.receiveShadow = true;
   scene.add(ground);
+  const syncGround = () => groundMat.color.set(css().getPropertyValue('--ground').trim());
+  new MutationObserver(syncGround).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncGround);
 
-  const VIEWS = {
-    fachada: [new THREE.Vector3(-650, 520, 2350), new THREE.Vector3(330, 260, 600)],
-    balcon:  [new THREE.Vector3(-1500, 420, 1500), new THREE.Vector3(-50, 260, 760)],
-    aerea:   [new THREE.Vector3(-1100, 2200, 2100), new THREE.Vector3(300, 150, 550)],
-    trasera: [new THREE.Vector3(1500, 600, -1300), new THREE.Vector3(450, 260, 500)],
-  };
-  let anim = null;
-  // En pantallas verticales (celular) la cámara se aleja para que la casa entre completa a lo ancho
-  const fit = () => camera.aspect < 1 ? Math.min(2.4, 0.95 / camera.aspect) : 1;
-  function goTo(name, instant) {
-    const [base, tgt] = VIEWS[name];
-    const pos = tgt.clone().add(base.clone().sub(tgt).multiplyScalar(fit()));
-    document.querySelectorAll('.views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === name)));
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (instant || reduce) { camera.position.copy(pos); controls.target.copy(tgt); controls.update(); return; }
-    anim = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos, t1: tgt, start: performance.now(), dur: 900 };
+  // Cada superficie del modelo se clasifica por nivel y si es techo, para poder abrir la casa como maqueta
+  const parts = [];
+  let mode = 'todo';
+  function applyMode() {
+    for (const p of parts) {
+      let show = true;
+      if (mode === 'pb') show = p.level === 'pb' && !p.ceiling;
+      else if (mode === 'pa') show = p.level !== 'azotea' && !(p.ceiling && p.level === 'pa');
+      p.mesh.visible = show;
+    }
   }
-  document.querySelectorAll('.views button').forEach(b => b.addEventListener('click', () => goTo(b.dataset.view)));
+
+  // Recorrido
+  let current = 0, anim = null;
+  const portrait = () => camera.aspect < 1;
+  function goTo(i, instant) {
+    current = (i + VIEWS.length) % VIEWS.length;
+    const v = VIEWS[current];
+    mode = v.mode; applyMode();
+    const exterior = !v.fov;
+    document.querySelector('.sheet').hidden = v.mode !== 'todo';
+    // En celular vertical las vistas exteriores se alejan para que la casa entre a lo ancho
+    const k = exterior && portrait() ? Math.min(2.4, 0.95 / camera.aspect) : 1;
+    const pos = v.tgt.clone().add(v.pos.clone().sub(v.tgt).multiplyScalar(k));
+    const fov = (v.fov || 40) + (portrait() ? 15 : 0);
+    controls.autoRotate = !!v.spin;
+    document.querySelectorAll('.chip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.i === String(current))));
+    const chip = document.querySelector('.chip[data-i="' + current + '"]');
+    if (chip) chip.scrollIntoView({ block: 'nearest', inline: 'center', behavior: instant ? 'auto' : 'smooth' });
+    document.getElementById('now-title').textContent = (v.group === 'Exterior' ? '' : v.group + ' · ') + v.name;
+    document.getElementById('now-hint').textContent = v.hint;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (instant || reduce) {
+      camera.position.copy(pos); controls.target.copy(v.tgt); camera.fov = fov; camera.updateProjectionMatrix(); controls.update(); anim = null; return;
+    }
+    anim = { p0: camera.position.clone(), t0: controls.target.clone(), f0: camera.fov, p1: pos, t1: v.tgt.clone(), f1: fov, start: performance.now(), dur: 1000 };
+  }
+
+  const groupsEl = document.getElementById('groups');
+  let groupEl = null, lastGroup = null;
+  VIEWS.forEach((v, i) => {
+    if (v.group !== lastGroup) {
+      groupEl = document.createElement('div'); groupEl.className = 'group';
+      const g = document.createElement('span'); g.className = 'gname'; g.textContent = v.group;
+      groupEl.appendChild(g); groupsEl.appendChild(groupEl); lastGroup = v.group;
+    }
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip'; b.id = 'vista-' + v.id; b.dataset.i = String(i); b.textContent = v.name;
+    b.addEventListener('click', () => goTo(i));
+    groupEl.appendChild(b);
+  });
+  document.getElementById('prev').addEventListener('click', () => goTo(current - 1));
+  document.getElementById('next').addEventListener('click', () => goTo(current + 1));
+  window.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') goTo(current + 1);
+    if (e.key === 'ArrowLeft') goTo(current - 1);
+  });
 
   function resize() {
     const w = stage.clientWidth, h = stage.clientHeight;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
-    camera.fov = camera.aspect < 1 ? 55 : 40;
     camera.updateProjectionMatrix();
   }
-  window.addEventListener('resize', resize);
+  window.addEventListener('resize', () => { resize(); goTo(current, true); });
   resize();
-  goTo('fachada', true);
+  goTo(0, true);
 
   function frame(now) {
     if (anim) {
       const t = Math.min(1, (now - anim.start) / anim.dur), e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
       camera.position.lerpVectors(anim.p0, anim.p1, e);
       controls.target.lerpVectors(anim.t0, anim.t1, e);
+      camera.fov = anim.f0 + (anim.f1 - anim.f0) * e;
+      camera.updateProjectionMatrix();
       if (t === 1) anim = null;
     }
     controls.update();
@@ -201,24 +274,39 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-display
   }
   requestAnimationFrame(frame);
 
-  // Los colores del cielo y el suelo siguen el tema del visor
-  const themeObserver = new MutationObserver(() => groundMat.color.set(css().getPropertyValue('--ground').trim()));
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => groundMat.color.set(css().getPropertyValue('--ground').trim()));
-
   new THREE.MTLLoader().load('Casa_R04B_3D.mtl', materials => {
     materials.preload();
-    Object.values(materials.materials).forEach(m => { m.side = THREE.DoubleSide; });
+    // Caras de un solo lado: desde arriba los techos no tapan; desde adentro sí se ven
+    Object.values(materials.materials).forEach(m => { m.side = THREE.FrontSide; m.shadowSide = THREE.DoubleSide; });
     const loader = new THREE.OBJLoader();
     loader.setMaterials(materials);
     loader.load('Casa_R04B_3D.obj', obj => {
       obj.traverse(o => {
         if (!o.isMesh) return;
-        if (/^ground/.test(o.name)) { o.visible = false; return; }  // el suelo propio del visor lo reemplaza
+        if (/^ground/.test(o.name)) { o.visible = false; return; }
         o.castShadow = true;
         o.receiveShadow = true;
+        o.geometry.computeBoundingBox();
+        const b = o.geometry.boundingBox;
+        let ceiling = false;
+        const flat = b.max.y - b.min.y < 1;
+        if (flat && /^room/.test(o.name)) {
+          const n = o.geometry.attributes.normal;
+          let sum = 0; for (let k = 0; k < n.count; k++) sum += n.getY(k);
+          ceiling = sum / n.count < -0.5;
+        }
+        const y = b.min.y;
+        const level = ceiling ? (y < 300 ? 'pb' : 'pa') : (y < 250 ? 'pb' : y < 545 ? 'pa' : 'azotea');
+        // Gabinetes de cocina en tono madera para que se lean contra los muros blancos
+        const cx = (b.min.x + b.max.x) / 2, cz = (b.min.z + b.max.z) / 2;
+        if (/^(Corps|Panneau|Meuble)/.test(o.name) && b.max.y <= 95 && cx > 490 && cx < 870 && cz > 30 && cz < 345) {
+          const tint = m => { const c = m.clone(); c.color.set(0x9a7352); return c; };
+          o.material = Array.isArray(o.material) ? o.material.map(tint) : tint(o.material);
+        }
+        parts.push({ mesh: o, level, ceiling });
       });
       scene.add(obj);
+      applyMode();
       status.hidden = true;
     }, xhr => {
       if (xhr.lengthComputable) status.textContent = 'Cargando modelo… ' + Math.round(xhr.loaded / xhr.total * 100) + ' %';
