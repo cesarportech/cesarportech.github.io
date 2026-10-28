@@ -196,9 +196,10 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-display
   let mode = 'todo';
   function applyMode() {
     for (const p of parts) {
-      let show = true;
-      if (mode === 'pb') show = p.level === 'pb' && !p.ceiling;
-      else if (mode === 'pa') show = p.level !== 'azotea' && !(p.ceiling && p.level === 'pa');
+      // Los plafones interiores nunca se muestran: desde afuera los cubre la losa y adentro taparían la vista
+      let show = !p.ceiling;
+      if (mode === 'pb') show = show && p.level === 'pb';
+      else if (mode === 'pa') show = show && p.level !== 'azotea';
       p.mesh.visible = show;
     }
   }
@@ -274,10 +275,69 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-display
   }
   requestAnimationFrame(frame);
 
+  // ---------- Paleta por tipo de elemento ----------
+  const PALETTE = {
+    muroExterior: 0xf3f1ec,   // fachada blanca
+    muroInterior: 0xe6dccd,   // arena claro, para que puertas y muebles se separen del muro
+    cantoMuro: 0xb9b1a6,
+    puertaHoja: 0x8a5a3a,     // nogal
+    puertaMarco: 0x5a3c28,
+    ventanaMarco: 0x3a3f44,   // aluminio grafito
+    pisoSocial: 0xd6c8b2,     // porcelanato beige
+    pisoMadera: 0xb07f55,     // recámaras y vestidor
+    pisoHumedo: 0xaebfc4,     // azulejo de baños y lavandería
+    pisoCochera: 0x9a9d99,    // concreto
+    cocina: 0x9a7352,
+    cama: 0x6e8797,
+    sofa: 0x4f6d75,
+  };
+  const matCache = new Map();
+  function colored(base, hex) {
+    const key = base.uuid + hex;
+    if (!matCache.has(key)) { const m = base.clone(); m.color.setHex(hex); matCache.set(key, m); }
+    return matCache.get(key);
+  }
+  function setColor(o, hex) {
+    o.material = Array.isArray(o.material) ? o.material.map(m => colored(m, hex)) : colored(o.material, hex);
+  }
+  function avgNormal(g) {
+    const n = g.attributes.normal, v = new THREE.Vector3();
+    for (let k = 0; k < n.count; k++) v.x += n.getX(k), v.y += n.getY(k), v.z += n.getZ(k);
+    return v.divideScalar(Math.max(1, n.count));
+  }
+  function paint(o, b, ceiling, level) {
+    const name = o.name, h = b.max.y - b.min.y;
+    const cx = (b.min.x + b.max.x) / 2, cz = (b.min.z + b.max.z) / 2;
+    const base = level === 'pa' ? 280 : 0;
+    if (/^wall/.test(name)) {
+      const n = avgNormal(o.geometry);
+      if (Math.abs(n.y) > 0.7) return setColor(o, PALETTE.cantoMuro);
+      const outside = (n.x < -0.7 && b.max.x < 0) || (n.x > 0.7 && b.min.x > 900) ||
+                      (n.z < -0.7 && b.max.z < 0) || (n.z > 0.7 && b.min.z > 1100);
+      return setColor(o, outside ? PALETTE.muroExterior : PALETTE.muroInterior);
+    }
+    if (/^room/.test(name) && !ceiling) {   // en planta alta el piso viene como losa de 20 cm
+      if (cx < 0) return level === 'pb' ? setColor(o, PALETTE.pisoCochera) : undefined;  // el balcón conserva su deck
+      const humedo = level === 'pb' ? (cx > 480 && cz > 380 && cz < 620)
+                                    : (cx > 489 && cz > 340 && cz < 530) || (cx > 670 && cz > 800);
+      if (humedo) return setColor(o, PALETTE.pisoHumedo);
+      const madera = level === 'pa' && (cz < 340 || (cx > 489 && cz > 530) || (cx < 489 && cz > 800));
+      return setColor(o, madera ? PALETTE.pisoMadera : PALETTE.pisoSocial);
+    }
+    // Puertas: hojas y marcos que llegan al piso del nivel; el resto de marcos y hojas son ventanas
+    const alPiso = b.min.y - base < 15 && h > 150;
+    if (/opening_on_hinge_\d+_door(Outside)?_\d+$/.test(name) && alPiso) return setColor(o, PALETTE.puertaHoja);
+    if (/^frame/.test(name)) return setColor(o, alPiso ? PALETTE.puertaMarco : PALETTE.ventanaMarco);
+    if (/^sweethome3d_opening_on_hinge_\d+(_\d+)?$/.test(name)) return setColor(o, PALETTE.ventanaMarco);
+    if (/^(Corps|Panneau|Meuble)/.test(name) && b.max.y <= 95 && cx > 490 && cx < 870 && cz > 30 && cz < 345) return setColor(o, PALETTE.cocina);
+    if (/^Matress/.test(name)) return setColor(o, PALETTE.cama);
+    if (/^(Left|Right)(Seat|Pillow|Shoulder)|^Base_/.test(name)) return setColor(o, PALETTE.sofa);
+  }
+
   new THREE.MTLLoader().load('Casa_R04B_3D.mtl', materials => {
     materials.preload();
-    // Caras de un solo lado: desde arriba los techos no tapan; desde adentro sí se ven
-    Object.values(materials.materials).forEach(m => { m.side = THREE.FrontSide; m.shadowSide = THREE.DoubleSide; });
+    // Ambas caras: Sweet Home 3D exporta algunas superficies con el sentido invertido
+    Object.values(materials.materials).forEach(m => { m.side = THREE.DoubleSide; });
     const loader = new THREE.OBJLoader();
     loader.setMaterials(materials);
     loader.load('Casa_R04B_3D.obj', obj => {
@@ -297,12 +357,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-display
         }
         const y = b.min.y;
         const level = ceiling ? (y < 300 ? 'pb' : 'pa') : (y < 250 ? 'pb' : y < 545 ? 'pa' : 'azotea');
-        // Gabinetes de cocina en tono madera para que se lean contra los muros blancos
-        const cx = (b.min.x + b.max.x) / 2, cz = (b.min.z + b.max.z) / 2;
-        if (/^(Corps|Panneau|Meuble)/.test(o.name) && b.max.y <= 95 && cx > 490 && cx < 870 && cz > 30 && cz < 345) {
-          const tint = m => { const c = m.clone(); c.color.set(0x9a7352); return c; };
-          o.material = Array.isArray(o.material) ? o.material.map(tint) : tint(o.material);
-        }
+        paint(o, b, ceiling, level);
         parts.push({ mesh: o, level, ceiling });
       });
       scene.add(obj);
