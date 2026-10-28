@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Visor 3D de la casa de dos plantas, Anteproyecto R04B corregido.">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}[hidden]{display:none!important}</style>
+</head>
+<body><title>Casa R04B</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: el modelo ocupa toda la pantalla; ficha técnica arriba a la izquierda, vistas abajo, como una lámina de presentación */
+:root {
+  --bg: #eef1f2;
+  --sky-top: #cfdfe6;
+  --ink: #18303d;
+  --muted: #5b6d77;
+  --panel: rgba(255, 255, 255, 0.86);
+  --line: #c9d3d8;
+  --accent: #b5652e;
+  --ground: #dfe3dc;
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11181d; --sky-top: #1f2d36; --ink: #e5edf1; --muted: #93a6b1;
+    --panel: rgba(17, 24, 29, 0.84); --line: #2c3b44; --accent: #e08a4e; --ground: #2a3133;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11181d; --sky-top: #1f2d36; --ink: #e5edf1; --muted: #93a6b1;
+  --panel: rgba(17, 24, 29, 0.84); --line: #2c3b44; --accent: #e08a4e; --ground: #2a3133;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-display); overflow: hidden; }
+#stage { position: fixed; inset: 0; background: linear-gradient(var(--sky-top), var(--bg) 70%); }
+#stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.sheet {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 16px);
+  left: max(16px, env(safe-area-inset-left, 0px));
+  max-width: min(340px, calc(100vw - 32px));
+  background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+  padding: 14px 16px; backdrop-filter: blur(6px);
+  display: grid; gap: 8px;
+}
+.sheet .tag { font-family: var(--font-data); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.sheet h1 { margin: 0; font-size: 22px; font-weight: 700; line-height: 1.1; text-wrap: balance; }
+.sheet dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-family: var(--font-data); font-size: 12px; font-variant-numeric: tabular-nums; }
+.sheet dt { color: var(--muted); }
+.sheet dd { margin: 0; }
+.sheet .note { font-size: 11px; color: var(--muted); font-family: var(--font-data); }
+.views {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  left: 50%; transform: translateX(-50%);
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
+  max-width: calc(100vw - 32px);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px;
+  backdrop-filter: blur(6px);
+}
+.views button {
+  font: 500 13px var(--font-display); color: var(--ink); background: transparent;
+  border: 1px solid transparent; border-radius: 4px; padding: 8px 12px; cursor: pointer;
+}
+.views button:hover { border-color: var(--line); }
+.views button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.views button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hint {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
+  left: 50%; transform: translateX(-50%);
+  font-family: var(--font-data); font-size: 11px; color: var(--muted); white-space: nowrap;
+}
+#status {
+  position: fixed; inset: 0; display: grid; place-items: center;
+  font-family: var(--font-data); font-size: 13px; color: var(--muted); pointer-events: none;
+}
+#status[hidden] { display: none; }
+@media (max-width: 520px) {
+  .sheet dl, .sheet .note { display: none; }
+  .hint { display: none; }
+}
+</style>
+
+<div id="stage" aria-label="Modelo 3D de la casa"></div>
+
+<section class="sheet">
+  <span class="tag">Anteproyecto R04B · corregido</span>
+  <h1>Casa de dos plantas</h1>
+  <dl>
+    <dt>Envolvente</dt><dd>9.00 × 11.00 m</dd>
+    <dt>Niveles</dt><dd>2 · 2.80 m piso a piso</dd>
+    <dt>Escalera</dt><dd>8 + 8 contrahuellas de 17.5 cm</dd>
+    <dt>Balcón</dt><dd>3.00 × 6.00 m sobre estacionamiento</dd>
+  </dl>
+  <span class="note">Propuesta preliminar · no apta para construcción</span>
+</section>
+
+<div id="status">Cargando modelo…</div>
+
+<span class="hint">Arrastra para girar · rueda o pellizco para acercar</span>
+<nav class="views" aria-label="Vistas">
+  <button type="button" id="v-fachada" data-view="fachada" aria-pressed="true">Fachada</button>
+  <button type="button" id="v-balcon" data-view="balcon" aria-pressed="false">Balcón</button>
+  <button type="button" id="v-aerea" data-view="aerea" aria-pressed="false">Aérea</button>
+  <button type="button" id="v-trasera" data-view="trasera" aria-pressed="false">Trasera</button>
+</nav>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/MTLLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/OBJLoader.js"></script>
+<script>
+(function () {
+  const stage = document.getElementById('stage');
+  const status = document.getElementById('status');
+  const css = () => getComputedStyle(document.documentElement);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  stage.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  // Modelo en cm: X ancho (0–900), Y altura, Z fondo→frente (0–1100); el frente mira a +Z
+  const center = new THREE.Vector3(300, 260, 560);
+  const camera = new THREE.PerspectiveCamera(40, 1, 10, 20000);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.maxPolarAngle = Math.PI * 0.49;
+  controls.minDistance = 300;
+  controls.maxDistance = 4500;
+  controls.target.copy(center);
+
+  scene.add(new THREE.HemisphereLight(0xf2f6f8, 0x8a8f86, 0.75));
+  const sun = new THREE.DirectionalLight(0xfff4e6, 0.85);
+  sun.position.set(-900, 1600, 1800);
+  sun.target.position.copy(center);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -1200, right: 1200, top: 1200, bottom: -1200, near: 100, far: 5000 });
+  scene.add(sun, sun.target);
+
+  const groundMat = new THREE.MeshLambertMaterial({ color: css().getPropertyValue('--ground').trim() });
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(3000, 64), groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.set(300, -1, 550);
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  const VIEWS = {
+    fachada: [new THREE.Vector3(-650, 520, 2350), new THREE.Vector3(330, 260, 600)],
+    balcon:  [new THREE.Vector3(-1500, 420, 1500), new THREE.Vector3(-50, 260, 760)],
+    aerea:   [new THREE.Vector3(-1100, 2200, 2100), new THREE.Vector3(300, 150, 550)],
+    trasera: [new THREE.Vector3(1500, 600, -1300), new THREE.Vector3(450, 260, 500)],
+  };
+  let anim = null;
+  function goTo(name, instant) {
+    const [pos, tgt] = VIEWS[name];
+    document.querySelectorAll('.views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === name)));
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (instant || reduce) { camera.position.copy(pos); controls.target.copy(tgt); controls.update(); return; }
+    anim = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos, t1: tgt, start: performance.now(), dur: 900 };
+  }
+  document.querySelectorAll('.views button').forEach(b => b.addEventListener('click', () => goTo(b.dataset.view)));
+  goTo('fachada', true);
+
+  function resize() {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function frame(now) {
+    if (anim) {
+      const t = Math.min(1, (now - anim.start) / anim.dur), e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      camera.position.lerpVectors(anim.p0, anim.p1, e);
+      controls.target.lerpVectors(anim.t0, anim.t1, e);
+      if (t === 1) anim = null;
+    }
+    controls.update();
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // Los colores del cielo y el suelo siguen el tema del visor
+  const themeObserver = new MutationObserver(() => groundMat.color.set(css().getPropertyValue('--ground').trim()));
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => groundMat.color.set(css().getPropertyValue('--ground').trim()));
+
+  new THREE.MTLLoader().load('Casa_R04B_3D.mtl', materials => {
+    materials.preload();
+    Object.values(materials.materials).forEach(m => { m.side = THREE.DoubleSide; });
+    const loader = new THREE.OBJLoader();
+    loader.setMaterials(materials);
+    loader.load('Casa_R04B_3D.obj', obj => {
+      obj.traverse(o => {
+        if (!o.isMesh) return;
+        if (/^ground/.test(o.name)) { o.visible = false; return; }  // el suelo propio del visor lo reemplaza
+        o.castShadow = true;
+        o.receiveShadow = true;
+      });
+      scene.add(obj);
+      status.hidden = true;
+    }, xhr => {
+      if (xhr.lengthComputable) status.textContent = 'Cargando modelo… ' + Math.round(xhr.loaded / xhr.total * 100) + ' %';
+    }, () => { status.textContent = 'No se pudo cargar el modelo 3D. Recarga la página para intentarlo de nuevo.'; });
+  }, undefined, () => { status.textContent = 'No se pudieron cargar los materiales. Recarga la página para intentarlo de nuevo.'; });
+})();
+</script>
+
+</body>
+</html>
